@@ -89,8 +89,8 @@ col4.metric('Mês final', max_mes.strftime('%Y-%m') if pd.notnull(max_mes) else 
 
 st.subheader('Resumo')
 st.dataframe(
-    df[['CODPROD','DESCRICAO','UNIDADE','MEDIA_MENSAL_GIRO','MESES_COM_MOVIMENTO','QTDE_TOTAL','MES_INICIAL','MES_FINAL']]
-      .rename(columns={'MEDIA_MENSAL_GIRO':'Média Diária','MESES_COM_MOVIMENTO':'Meses com Movimento','QTDE_TOTAL':'Qtde Total','MES_INICIAL':'Mês Inicial','MES_FINAL':'Mês Final'}),
+    df[['CODPROD','DESCRICAO','UNIDADE','MEDIA_MENSAL_GIRO','DIAS_COM_MOVIMENTO','MESES_COM_MOVIMENTO','QTDE_TOTAL','MES_INICIAL','MES_FINAL']]
+      .rename(columns={'MEDIA_MENSAL_GIRO':'Média Diária','DIAS_COM_MOVIMENTO':'Dias com Movimento','MESES_COM_MOVIMENTO':'Meses com Movimento','QTDE_TOTAL':'Qtde Total','MES_INICIAL':'Mês Inicial','MES_FINAL':'Mês Final'}),
     width='stretch',
     hide_index=True,
 )
