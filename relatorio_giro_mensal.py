@@ -49,21 +49,17 @@ def calcular_media_mensal(df: pd.DataFrame) -> pd.DataFrame:
         return (mf.year - mi.year) * 12 + (mf.month - mi.month) + 1
     comp['MESES_INTERVALO'] = comp.apply(meses_intervalo, axis=1)
 
-    # cálculo adicional para média diária: usar datas reais do intervalo
-    min_data = df.groupby(keys)[data_col].min().rename('DATA_INICIAL')
-    max_data = df.groupby(keys)[data_col].max().rename('DATA_FINAL')
-    comp_dias = pd.concat([min_data, max_data], axis=1)
-    def dias_intervalo(row):
-        return (row['DATA_FINAL'] - row['DATA_INICIAL']).days + 1 if pd.notnull(row['DATA_FINAL']) and pd.notnull(row['DATA_INICIAL']) else pd.NA
-    comp_dias['DIAS_INTERVALO'] = comp_dias.apply(dias_intervalo, axis=1)
-
-    # média diária considerando todos os dias do intervalo do item
-    media_diaria = (total_por_item / comp_dias['DIAS_INTERVALO']).rename('MEDIA_MENSAL_GIRO')
+    # cálculo para média diária: dividir pelo número de dias com movimento (>0)
+    df['DIA'] = df[data_col].dt.date
+    dias_com_mov = df[df[qtd_col] > 0].groupby(keys)['DIA'].nunique().rename('DIAS_COM_MOVIMENTO')
+    # evitar divisão por zero
+    denom = dias_com_mov.replace(0, pd.NA)
+    media_diaria = (total_por_item / denom).fillna(0).rename('MEDIA_MENSAL_GIRO')
 
     # Montar resumo
-    resumo = pd.concat([total_por_item, meses_mov, comp, comp_dias['DIAS_INTERVALO']], axis=1).reset_index()
+    resumo = pd.concat([total_por_item, meses_mov, comp, dias_com_mov], axis=1).reset_index()
     # Mantemos o nome da coluna 'MEDIA_MENSAL_GIRO' por compatibilidade com a UI,
-    # mas o valor agora representa a média diária do intervalo.
+    # mas o valor agora representa a média diária considerando dias com movimento.
     resumo['MEDIA_MENSAL_GIRO'] = media_diaria.values
 
     # Ordenar por maior média
