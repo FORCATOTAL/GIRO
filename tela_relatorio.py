@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 import subprocess
+import io
 
 ARQ_REL_XLSX = Path('RELATORIO_GIRO_MENSAL.xlsx')
 ARQ_REL_CSV = Path('RELATORIO_GIRO_MENSAL.csv')
@@ -13,16 +14,34 @@ st.sidebar.header('Opções')
 
 def garantir_relatorio():
     if not ARQ_REL_XLSX.exists():
-        st.warning('RELATORIO_GIRO_MENSAL.xlsx não encontrado. Gere o relatório a partir do GIRO.xlsx.')
-        if st.sidebar.button('Gerar relatório (GIRO.xlsx → RELATORIO_GIRO_MENSAL.xlsx)'):
+        origem = Path('GIRO.xlsx')
+        df = None
+        if origem.exists():
             try:
-                proc = subprocess.run(['python', 'relatorio_giro_mensal.py'], capture_output=True, text=True)
-                st.toast('Relatório gerado com sucesso.' if proc.returncode == 0 else 'Falha ao gerar relatório.', icon='✅' if proc.returncode == 0 else '❌')
-                if proc.stdout:
-                    with st.expander('Logs de geração'):
-                        st.code(proc.stdout)
+                df = pd.read_excel(origem, sheet_name=0)
             except Exception as e:
-                st.error(f'Erro ao executar geração: {e}')
+                st.error(f'Erro ao ler GIRO.xlsx: {e}')
+        else:
+            uploaded = st.sidebar.file_uploader('Enviar GIRO.xlsx', type=['xlsx'])
+            if uploaded is not None:
+                try:
+                    df = pd.read_excel(uploaded, sheet_name=0)
+                except Exception as e:
+                    st.error(f'Erro ao ler arquivo enviado: {e}')
+        if df is not None:
+            try:
+                import relatorio_giro_mensal as rgm
+                resumo, monthly = rgm.calcular_media_mensal(df)
+                rgm.salvar_relatorio(resumo, monthly, ARQ_REL_XLSX)
+                try:
+                    resumo.to_csv(ARQ_REL_CSV, index=False)
+                except Exception:
+                    pass
+                st.toast('Relatório gerado automaticamente a partir do GIRO.xlsx', icon='✅')
+            except Exception as e:
+                st.error(f'Falha ao gerar relatório: {e}')
+        else:
+            st.warning('RELATORIO_GIRO_MENSAL.xlsx não encontrado. Carregue o GIRO.xlsx na barra lateral para gerar o relatório.')
 
 def carregar_dados():
     garantir_relatorio()
