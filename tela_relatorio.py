@@ -8,7 +8,7 @@ ARQ_REL_XLSX = Path('RELATORIO_GIRO_MENSAL.xlsx')
 ARQ_REL_CSV = Path('RELATORIO_GIRO_MENSAL.csv')
 
 st.set_page_config(page_title='Relatório de Giro Mensal', layout='wide')
-st.title('Relatório de Giro Mensal por Item')
+st.title('Relatório de Giro por Item')
 
 st.sidebar.header('Opções')
 
@@ -81,7 +81,7 @@ if not mostrar_todos:
 col1, col2, col3, col4 = st.columns(4)
 col1.metric('Itens no Top N', len(df))
 media_global = df['MEDIA_MENSAL_GIRO'].mean() if len(df) else 0
-col2.metric('Média mensal (Top N)', f"{media_global:,.2f}")
+col2.metric('Média diária (Top N)', f"{media_global:,.2f}")
 min_mes = pd.to_datetime(resumo['MES_INICIAL']).min()
 max_mes = pd.to_datetime(resumo['MES_FINAL']).max()
 col3.metric('Mês inicial', min_mes.strftime('%Y-%m') if pd.notnull(min_mes) else '-')
@@ -90,7 +90,7 @@ col4.metric('Mês final', max_mes.strftime('%Y-%m') if pd.notnull(max_mes) else 
 st.subheader('Resumo')
 st.dataframe(
     df[['CODPROD','DESCRICAO','UNIDADE','MEDIA_MENSAL_GIRO','MESES_COM_MOVIMENTO','QTDE_TOTAL','MES_INICIAL','MES_FINAL']]
-      .rename(columns={'MEDIA_MENSAL_GIRO':'Média Mensal','MESES_COM_MOVIMENTO':'Meses com Movimento','QTDE_TOTAL':'Qtde Total','MES_INICIAL':'Mês Inicial','MES_FINAL':'Mês Final'}),
+      .rename(columns={'MEDIA_MENSAL_GIRO':'Média Diária','MESES_COM_MOVIMENTO':'Meses com Movimento','QTDE_TOTAL':'Qtde Total','MES_INICIAL':'Mês Inicial','MES_FINAL':'Mês Final'}),
     width='stretch',
     hide_index=True,
 )

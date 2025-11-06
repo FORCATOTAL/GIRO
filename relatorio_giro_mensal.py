@@ -30,8 +30,9 @@ def calcular_media_mensal(df: pd.DataFrame) -> pd.DataFrame:
     )
 
     # Calcular métricas por item
-    # total por item
-    total_por_item = monthly.groupby([cod_col, desc_col, unidade_col])[qtd_col].sum().rename('QTDE_TOTAL')
+    # total por item (somando diretamente do dado diário)
+    keys = [cod_col, desc_col, unidade_col]
+    total_por_item = df.groupby(keys)[qtd_col].sum().rename('QTDE_TOTAL')
 
     # meses com movimento (contagem de meses com quantidade > 0)
     meses_mov = monthly[monthly[qtd_col] > 0].groupby([cod_col, desc_col, unidade_col])['MES'].nunique().rename('MESES_COM_MOVIMENTO')
@@ -48,12 +49,22 @@ def calcular_media_mensal(df: pd.DataFrame) -> pd.DataFrame:
         return (mf.year - mi.year) * 12 + (mf.month - mi.month) + 1
     comp['MESES_INTERVALO'] = comp.apply(meses_intervalo, axis=1)
 
-    # média mensal considerando todo intervalo do item
-    media_mensal = (total_por_item / comp['MESES_INTERVALO']).rename('MEDIA_MENSAL_GIRO')
+    # cálculo adicional para média diária: usar datas reais do intervalo
+    min_data = df.groupby(keys)[data_col].min().rename('DATA_INICIAL')
+    max_data = df.groupby(keys)[data_col].max().rename('DATA_FINAL')
+    comp_dias = pd.concat([min_data, max_data], axis=1)
+    def dias_intervalo(row):
+        return (row['DATA_FINAL'] - row['DATA_INICIAL']).days + 1 if pd.notnull(row['DATA_FINAL']) and pd.notnull(row['DATA_INICIAL']) else pd.NA
+    comp_dias['DIAS_INTERVALO'] = comp_dias.apply(dias_intervalo, axis=1)
+
+    # média diária considerando todos os dias do intervalo do item
+    media_diaria = (total_por_item / comp_dias['DIAS_INTERVALO']).rename('MEDIA_MENSAL_GIRO')
 
     # Montar resumo
-    resumo = pd.concat([total_por_item, meses_mov, comp], axis=1).reset_index()
-    resumo['MEDIA_MENSAL_GIRO'] = media_mensal.values
+    resumo = pd.concat([total_por_item, meses_mov, comp, comp_dias['DIAS_INTERVALO']], axis=1).reset_index()
+    # Mantemos o nome da coluna 'MEDIA_MENSAL_GIRO' por compatibilidade com a UI,
+    # mas o valor agora representa a média diária do intervalo.
+    resumo['MEDIA_MENSAL_GIRO'] = media_diaria.values
 
     # Ordenar por maior média
     resumo = resumo.sort_values('MEDIA_MENSAL_GIRO', ascending=False)
