@@ -53,6 +53,35 @@ def carregar_dados():
     month_cols = [c for c in mensal.columns if isinstance(c, str) and pd.Series([c]).str.match(r'^\d{4}-\d{2}$').iloc[0]]
     # Ordenar colunas de mês
     meses_ord = sorted(month_cols)
+    # Garantir coluna Dias com Movimento e média diária consistente
+    def preencher_dias_mov_e_media(res):
+        if 'DIAS_COM_MOVIMENTO' not in res.columns:
+            try:
+                base = pd.read_excel('GIRO.xlsx', sheet_name=0)
+                base['DATA_FATURAMENTO'] = pd.to_datetime(base['DATA_FATURAMENTO'], errors='coerce')
+                base['QUANTIDADE_FATURADA'] = pd.to_numeric(base['QUANTIDADE_FATURADA'], errors='coerce').fillna(0)
+                base = base.dropna(subset=['DATA_FATURAMENTO'])
+                base['DIA'] = base['DATA_FATURAMENTO'].dt.date
+                dias = (
+                    base[base['QUANTIDADE_FATURADA'] > 0]
+                    .groupby(['CODPROD','DESCRICAO','UNIDADE'])['DIA']
+                    .nunique()
+                    .rename('DIAS_COM_MOVIMENTO')
+                    .reset_index()
+                )
+                res = res.merge(dias, on=['CODPROD','DESCRICAO','UNIDADE'], how='left')
+            except Exception:
+                # Não bloqueia caso não seja possível calcular
+                pass
+        if 'DIAS_COM_MOVIMENTO' in res.columns:
+            res['DIAS_COM_MOVIMENTO'] = pd.to_numeric(res['DIAS_COM_MOVIMENTO'], errors='coerce').fillna(0)
+            res['MEDIA_MENSAL_GIRO'] = res.apply(
+                lambda r: (r['QTDE_TOTAL'] / r['DIAS_COM_MOVIMENTO']) if r['DIAS_COM_MOVIMENTO'] > 0 else 0,
+                axis=1
+            )
+        return res
+
+    resumo = preencher_dias_mov_e_media(resumo)
     return resumo, mensal, meses_ord
 
 resumo, mensal, meses_ord = carregar_dados()
@@ -88,12 +117,19 @@ col3.metric('Mês inicial', min_mes.strftime('%Y-%m') if pd.notnull(min_mes) els
 col4.metric('Mês final', max_mes.strftime('%Y-%m') if pd.notnull(max_mes) else '-')
 
 st.subheader('Resumo')
-st.dataframe(
-    df[['CODPROD','DESCRICAO','UNIDADE','MEDIA_MENSAL_GIRO','DIAS_COM_MOVIMENTO','MESES_COM_MOVIMENTO','QTDE_TOTAL','MES_INICIAL','MES_FINAL']]
-      .rename(columns={'MEDIA_MENSAL_GIRO':'Média Diária','DIAS_COM_MOVIMENTO':'Dias com Movimento','MESES_COM_MOVIMENTO':'Meses com Movimento','QTDE_TOTAL':'Qtde Total','MES_INICIAL':'Mês Inicial','MES_FINAL':'Mês Final'}),
-    width='stretch',
-    hide_index=True,
-)
+cols_base = ['CODPROD','DESCRICAO','UNIDADE','MEDIA_MENSAL_GIRO','MESES_COM_MOVIMENTO','QTDE_TOTAL','MES_INICIAL','MES_FINAL']
+cols = cols_base.copy()
+if 'DIAS_COM_MOVIMENTO' in df.columns:
+    cols.insert(4, 'DIAS_COM_MOVIMENTO')  # antes de MESES_COM_MOVIMENTO
+df_mostrar = df[cols].rename(columns={
+    'MEDIA_MENSAL_GIRO':'Média Diária',
+    'DIAS_COM_MOVIMENTO':'Dias com Movimento',
+    'MESES_COM_MOVIMENTO':'Meses com Movimento',
+    'QTDE_TOTAL':'Qtde Total',
+    'MES_INICIAL':'Mês Inicial',
+    'MES_FINAL':'Mês Final'
+})
+st.dataframe(df_mostrar, width='stretch', hide_index=True)
 
 # Seleção de item para detalhamento
 st.subheader('Detalhe diário por item')
