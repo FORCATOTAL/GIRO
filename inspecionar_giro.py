@@ -38,5 +38,21 @@ def main():
     print("Possíveis colunas de data/mês:", date_candidates)
     print("Possíveis colunas de valor (giro/quantidade):", value_candidates)
 
+    # Estatística: dias distintos com movimento por item
+    try:
+        df['DATA_FATURAMENTO'] = pd.to_datetime(df['DATA_FATURAMENTO'], errors='coerce')
+        df['QUANTIDADE_FATURADA'] = pd.to_numeric(df['QUANTIDADE_FATURADA'], errors='coerce').fillna(0)
+        df = df.dropna(subset=['DATA_FATURAMENTO'])
+        df['DIA'] = df['DATA_FATURAMENTO'].dt.date
+        dias_por_item = df[df['QUANTIDADE_FATURADA'] > 0].groupby(['CODPROD','DESCRICAO','UNIDADE'])['DIA'].nunique()
+        print("\nDistribuição de dias com movimento por item:")
+        print("  Min:", dias_por_item.min(), " | Max:", dias_por_item.max(), " | Média:", round(dias_por_item.mean(),2))
+        print("  Itens com 1 dia:", int((dias_por_item==1).sum()))
+        print("  Itens com >=2 dias:", int((dias_por_item>=2).sum()))
+        print("\nExemplos (top 10 por dias):")
+        print(dias_por_item.sort_values(ascending=False).head(10))
+    except Exception as e:
+        print(f"\nFalha ao calcular dias por item: {e}")
+
 if __name__ == '__main__':
     main()
