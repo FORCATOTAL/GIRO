@@ -1,0 +1,1 @@
+web: streamlit run tela_relatorio.py --server.headless true --server.address 0.0.0.0 --server.port $PORT

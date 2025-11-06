@@ -1,0 +1,8 @@
+[server]
+headless = true
+enableCORS = false
+maxUploadSize = 200
+
+# Porta padrão; em PaaS use flag --server.port
+port = 8501
+address = "0.0.0.0"

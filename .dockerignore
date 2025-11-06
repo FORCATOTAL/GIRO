@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.git/
+~$*.xlsx
+RELATORIO_GIRO_MENSAL.xlsx
+RELATORIO_GIRO_MENSAL.csv

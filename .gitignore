@@ -1,0 +1,19 @@
+# Ambiente virtual e caches
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE e VCS
+.idea/
+.vscode/
+.DS_Store
+.Python
+.git/
+
+# Arquivos temporários do Excel
+~$*.xlsx
+
+# Relatórios gerados em runtime
+RELATORIO_GIRO_MENSAL.xlsx
+RELATORIO_GIRO_MENSAL.csv
