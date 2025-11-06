@@ -49,11 +49,24 @@ def calcular_media_mensal(df: pd.DataFrame) -> pd.DataFrame:
         return (mf.year - mi.year) * 12 + (mf.month - mi.month) + 1
     comp['MESES_INTERVALO'] = comp.apply(meses_intervalo, axis=1)
 
-    # cálculo para média diária: dividir pelo número de dias com movimento (>0)
+    # cálculo de dias de calendário no intervalo [MES_INICIAL .. fim de MES_FINAL]
+    comp = pd.concat([min_mes, max_mes], axis=1)
+    def dias_intervalo_calendario(row):
+        mi, mf = row['MES_INICIAL'], row['MES_FINAL']
+        if pd.isna(mi) or pd.isna(mf):
+            return 0
+        inicio = pd.Timestamp(year=mi.year, month=mi.month, day=1)
+        # último dia do mês final
+        fim = (pd.Timestamp(year=mf.year, month=mf.month, day=1) + pd.offsets.MonthEnd(1))
+        return (fim - inicio).days + 1
+    comp['DIAS_CALENDARIO'] = comp.apply(dias_intervalo_calendario, axis=1)
+
+    # também calcular dias com movimento para transparência
     df['DIA'] = df[data_col].dt.date
     dias_com_mov = df[df[qtd_col] > 0].groupby(keys)['DIA'].nunique().rename('DIAS_COM_MOVIMENTO')
-    # evitar divisão por zero
-    denom = dias_com_mov.replace(0, pd.NA)
+
+    # média diária baseada em dias de calendário (todos os dias do(s) mês(es) no intervalo)
+    denom = comp['DIAS_CALENDARIO'].replace(0, pd.NA)
     media_diaria = (total_por_item / denom).fillna(0).rename('MEDIA_MENSAL_GIRO')
 
     # Montar resumo

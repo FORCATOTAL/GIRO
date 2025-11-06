@@ -53,35 +53,33 @@ def carregar_dados():
     month_cols = [c for c in mensal.columns if isinstance(c, str) and pd.Series([c]).str.match(r'^\d{4}-\d{2}$').iloc[0]]
     # Ordenar colunas de mês
     meses_ord = sorted(month_cols)
-    # Garantir coluna Dias com Movimento e média diária consistente
-    def preencher_dias_mov_e_media(res):
-        if 'DIAS_COM_MOVIMENTO' not in res.columns:
+    # Garantir média diária baseada em dias de calendário do período (todos os dias)
+    def preencher_dias_calendario_e_media(res):
+        # Se o arquivo ainda não tiver DIAS_CALENDARIO, derivar via MES_INICIAL/MES_FINAL
+        if 'DIAS_CALENDARIO' not in res.columns and {'MES_INICIAL','MES_FINAL'}.issubset(set(res.columns)):
             try:
-                base = pd.read_excel('GIRO.xlsx', sheet_name=0)
-                base['DATA_FATURAMENTO'] = pd.to_datetime(base['DATA_FATURAMENTO'], errors='coerce')
-                base['QUANTIDADE_FATURADA'] = pd.to_numeric(base['QUANTIDADE_FATURADA'], errors='coerce').fillna(0)
-                base = base.dropna(subset=['DATA_FATURAMENTO'])
-                base['DIA'] = base['DATA_FATURAMENTO'].dt.date
-                dias = (
-                    base[base['QUANTIDADE_FATURADA'] > 0]
-                    .groupby(['CODPROD','DESCRICAO','UNIDADE'])['DIA']
-                    .nunique()
-                    .rename('DIAS_COM_MOVIMENTO')
-                    .reset_index()
-                )
-                res = res.merge(dias, on=['CODPROD','DESCRICAO','UNIDADE'], how='left')
+                res['MES_INICIAL'] = pd.to_datetime(res['MES_INICIAL'], errors='coerce')
+                res['MES_FINAL'] = pd.to_datetime(res['MES_FINAL'], errors='coerce')
+                def dias_intervalo(row):
+                    mi, mf = row['MES_INICIAL'], row['MES_FINAL']
+                    if pd.isna(mi) or pd.isna(mf):
+                        return 0
+                    inicio = pd.Timestamp(year=mi.year, month=mi.month, day=1)
+                    fim = (pd.Timestamp(year=mf.year, month=mf.month, day=1) + pd.offsets.MonthEnd(1))
+                    return (fim - inicio).days + 1
+                res['DIAS_CALENDARIO'] = res.apply(dias_intervalo, axis=1)
             except Exception:
-                # Não bloqueia caso não seja possível calcular
                 pass
-        if 'DIAS_COM_MOVIMENTO' in res.columns:
-            res['DIAS_COM_MOVIMENTO'] = pd.to_numeric(res['DIAS_COM_MOVIMENTO'], errors='coerce').fillna(0)
+        # Recalcular média diária com base em dias de calendário quando disponível
+        if 'DIAS_CALENDARIO' in res.columns:
+            res['DIAS_CALENDARIO'] = pd.to_numeric(res['DIAS_CALENDARIO'], errors='coerce').fillna(0)
             res['MEDIA_MENSAL_GIRO'] = res.apply(
-                lambda r: (r['QTDE_TOTAL'] / r['DIAS_COM_MOVIMENTO']) if r['DIAS_COM_MOVIMENTO'] > 0 else 0,
+                lambda r: (r['QTDE_TOTAL'] / r['DIAS_CALENDARIO']) if r['DIAS_CALENDARIO'] > 0 else 0,
                 axis=1
             )
         return res
 
-    resumo = preencher_dias_mov_e_media(resumo)
+    resumo = preencher_dias_calendario_e_media(resumo)
     return resumo, mensal, meses_ord
 
 resumo, mensal, meses_ord = carregar_dados()
@@ -119,11 +117,11 @@ col4.metric('Mês final', max_mes.strftime('%Y-%m') if pd.notnull(max_mes) else 
 st.subheader('Resumo')
 cols_base = ['CODPROD','DESCRICAO','UNIDADE','MEDIA_MENSAL_GIRO','MESES_COM_MOVIMENTO','QTDE_TOTAL','MES_INICIAL','MES_FINAL']
 cols = cols_base.copy()
-if 'DIAS_COM_MOVIMENTO' in df.columns:
-    cols.insert(4, 'DIAS_COM_MOVIMENTO')  # antes de MESES_COM_MOVIMENTO
+if 'DIAS_CALENDARIO' in df.columns:
+    cols.insert(4, 'DIAS_CALENDARIO')  # antes de MESES_COM_MOVIMENTO
 df_mostrar = df[cols].rename(columns={
     'MEDIA_MENSAL_GIRO':'Média Diária',
-    'DIAS_COM_MOVIMENTO':'Dias com Movimento',
+    'DIAS_CALENDARIO':'Dias do Período',
     'MESES_COM_MOVIMENTO':'Meses com Movimento',
     'QTDE_TOTAL':'Qtde Total',
     'MES_INICIAL':'Mês Inicial',
