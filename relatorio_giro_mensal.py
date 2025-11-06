@@ -65,8 +65,8 @@ def calcular_media_mensal(df: pd.DataFrame) -> pd.DataFrame:
     df['DIA'] = df[data_col].dt.date
     dias_com_mov = df[df[qtd_col] > 0].groupby(keys)['DIA'].nunique().rename('DIAS_COM_MOVIMENTO')
 
-    # média diária baseada em dias de calendário (todos os dias do(s) mês(es) no intervalo)
-    denom = comp['DIAS_CALENDARIO'].replace(0, pd.NA)
+    # média diária baseada em dias com movimento (>0)
+    denom = dias_com_mov.replace(0, pd.NA)
     media_diaria = (total_por_item / denom).fillna(0).rename('MEDIA_MENSAL_GIRO')
 
     # Montar resumo

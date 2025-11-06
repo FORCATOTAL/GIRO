@@ -53,8 +53,8 @@ def carregar_dados():
     month_cols = [c for c in mensal.columns if isinstance(c, str) and pd.Series([c]).str.match(r'^\d{4}-\d{2}$').iloc[0]]
     # Ordenar colunas de mês
     meses_ord = sorted(month_cols)
-    # Garantir média diária baseada em dias de calendário do período (todos os dias)
-    def preencher_dias_calendario_e_media(res):
+    # Garantir dias de calendário do período (para referência)
+    def preencher_dias_calendario(res):
         # Se o arquivo ainda não tiver DIAS_CALENDARIO, derivar via MES_INICIAL/MES_FINAL
         if 'DIAS_CALENDARIO' not in res.columns and {'MES_INICIAL','MES_FINAL'}.issubset(set(res.columns)):
             try:
@@ -70,16 +70,9 @@ def carregar_dados():
                 res['DIAS_CALENDARIO'] = res.apply(dias_intervalo, axis=1)
             except Exception:
                 pass
-        # Recalcular média diária com base em dias de calendário quando disponível
-        if 'DIAS_CALENDARIO' in res.columns:
-            res['DIAS_CALENDARIO'] = pd.to_numeric(res['DIAS_CALENDARIO'], errors='coerce').fillna(0)
-            res['MEDIA_MENSAL_GIRO'] = res.apply(
-                lambda r: (r['QTDE_TOTAL'] / r['DIAS_CALENDARIO']) if r['DIAS_CALENDARIO'] > 0 else 0,
-                axis=1
-            )
         return res
 
-    resumo = preencher_dias_calendario_e_media(resumo)
+    resumo = preencher_dias_calendario(resumo)
 
     # Garantir presença de DIAS_COM_MOVIMENTO para exibição na UI
     def preencher_dias_com_movimento(res):
@@ -103,6 +96,13 @@ def carregar_dados():
         return res
 
     resumo = preencher_dias_com_movimento(resumo)
+    # Recalcular média diária com base em Dias com Movimento (se disponível)
+    if 'DIAS_COM_MOVIMENTO' in resumo.columns:
+        resumo['DIAS_COM_MOVIMENTO'] = pd.to_numeric(resumo['DIAS_COM_MOVIMENTO'], errors='coerce').fillna(0)
+        resumo['MEDIA_MENSAL_GIRO'] = resumo.apply(
+            lambda r: (r['QTDE_TOTAL'] / r['DIAS_COM_MOVIMENTO']) if r['DIAS_COM_MOVIMENTO'] > 0 else 0,
+            axis=1
+        )
     return resumo, mensal, meses_ord
 
 resumo, mensal, meses_ord = carregar_dados()
