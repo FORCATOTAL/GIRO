@@ -80,6 +80,29 @@ def carregar_dados():
         return res
 
     resumo = preencher_dias_calendario_e_media(resumo)
+
+    # Garantir presença de DIAS_COM_MOVIMENTO para exibição na UI
+    def preencher_dias_com_movimento(res):
+        if 'DIAS_COM_MOVIMENTO' not in res.columns:
+            try:
+                base = pd.read_excel('GIRO.xlsx', sheet_name=0)
+                base['DATA_FATURAMENTO'] = pd.to_datetime(base['DATA_FATURAMENTO'], errors='coerce')
+                base['QUANTIDADE_FATURADA'] = pd.to_numeric(base['QUANTIDADE_FATURADA'], errors='coerce').fillna(0)
+                base = base.dropna(subset=['DATA_FATURAMENTO'])
+                base['DIA'] = base['DATA_FATURAMENTO'].dt.date
+                dias = (
+                    base[base['QUANTIDADE_FATURADA'] > 0]
+                    .groupby(['CODPROD','DESCRICAO','UNIDADE'])['DIA']
+                    .nunique()
+                    .rename('DIAS_COM_MOVIMENTO')
+                    .reset_index()
+                )
+                res = res.merge(dias, on=['CODPROD','DESCRICAO','UNIDADE'], how='left')
+            except Exception:
+                pass
+        return res
+
+    resumo = preencher_dias_com_movimento(resumo)
     return resumo, mensal, meses_ord
 
 resumo, mensal, meses_ord = carregar_dados()
@@ -117,11 +140,11 @@ col4.metric('Mês final', max_mes.strftime('%Y-%m') if pd.notnull(max_mes) else 
 st.subheader('Resumo')
 cols_base = ['CODPROD','DESCRICAO','UNIDADE','MEDIA_MENSAL_GIRO','MESES_COM_MOVIMENTO','QTDE_TOTAL','MES_INICIAL','MES_FINAL']
 cols = cols_base.copy()
-if 'DIAS_CALENDARIO' in df.columns:
-    cols.insert(4, 'DIAS_CALENDARIO')  # antes de MESES_COM_MOVIMENTO
+if 'DIAS_COM_MOVIMENTO' in df.columns:
+    cols.insert(4, 'DIAS_COM_MOVIMENTO')  # antes de MESES_COM_MOVIMENTO
 df_mostrar = df[cols].rename(columns={
     'MEDIA_MENSAL_GIRO':'Média Diária',
-    'DIAS_CALENDARIO':'Dias do Período',
+    'DIAS_COM_MOVIMENTO':'Dias com Movimento',
     'MESES_COM_MOVIMENTO':'Meses com Movimento',
     'QTDE_TOTAL':'Qtde Total',
     'MES_INICIAL':'Mês Inicial',
